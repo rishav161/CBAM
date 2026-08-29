@@ -29,3 +29,8 @@ Thumbs.db
 .vscode/
 .idea/
 *.log
+
+# Local requirements & temp text files
+requirement.txt
+requirement*.txt
+
