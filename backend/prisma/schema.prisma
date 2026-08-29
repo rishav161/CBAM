@@ -1,0 +1,79 @@
+// Prisma Schema for CBAM Backend
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BatchStatus {
+  UPLOADED
+  MAPPING_REQUIRED
+  VALIDATING
+  VALIDATED
+  CALCULATING
+  CALCULATED
+  COMPLETED
+  FAILED
+}
+
+model UploadBatch {
+  id           String            @id @default(uuid())
+  fileName     String
+  originalName String
+  filePath     String
+  fileSize     Int
+  mimeType     String
+  status       BatchStatus       @default(UPLOADED)
+  errorMessage String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  datasets     ClientDataset[]
+  results      CalculationResult?
+}
+
+model ClientDataset {
+  id                    String      @id @default(uuid())
+  batchId               String
+  batch                 UploadBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  cnCode                String
+  goodsDescription      String?
+  countryOfOrigin       String
+  installationName      String?
+  productionQuantity    Float
+  quantityUnit          String      @default("tonne")
+  directEmissions       Float?      // tCO2e / unit
+  indirectEmissions     Float?      // tCO2e / unit
+  electricityConsumed   Float?      // MWh
+  isValid               Boolean     @default(true)
+  validationErrors      String[]
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+}
+
+model BenchmarkFactor {
+  id                   String   @id @default(uuid())
+  cnCode               String   @unique
+  sector               String
+  goodsName            String
+  directBenchmark      Float    // EU default tCO2e per tonne
+  indirectBenchmark    Float    // EU default tCO2e per tonne
+  unit                 String   @default("tCO2e/t")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model CalculationResult {
+  id                      String      @id @default(uuid())
+  batchId                 String      @unique
+  batch                   UploadBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  totalProductionQuantity Float
+  totalDirectEmissions    Float       // Total tCO2e
+  totalIndirectEmissions  Float       // Total tCO2e
+  totalEmbeddedEmissions  Float       // Direct + Indirect tCO2e
+  reportPath              String?
+  calculatedAt            DateTime    @default(now())
+}

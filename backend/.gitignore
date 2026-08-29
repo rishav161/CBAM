@@ -1,0 +1,12 @@
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+
+# Storage folders
+uploads/*
+reports/*
+
+# Logs
+*.log
