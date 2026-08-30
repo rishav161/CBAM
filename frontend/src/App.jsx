@@ -25,7 +25,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <div className="min-h-screen flex bg-slate-950 text-slate-100 font-sans antialiased">
+      <div className="min-h-screen flex bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased transition-colors duration-200">
         {/* Sidebar Navigation */}
         <SidebarNavigation
           batchCount={uploadedBatches.length}
