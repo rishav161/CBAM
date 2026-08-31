@@ -1,10 +1,12 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { UploadCloud, Table, ShieldCheck, Database, Sun, Moon } from 'lucide-react';
+import { UploadCloud, Table, ShieldCheck, Database, Sun, Moon, Users, LogOut, User } from 'lucide-react';
 import { useTheme } from '../../providers/ThemeProvider.jsx';
+import { useAuth } from '../../providers/AuthProvider.jsx';
 
 export function SidebarNavigation({ batchCount, factorCount }) {
   const { theme, toggleTheme } = useTheme();
+  const { user, isSuperAdmin, logout } = useAuth();
 
   return (
     <aside className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col h-screen sticky top-0 shrink-0 transition-colors duration-200">
@@ -30,8 +32,32 @@ export function SidebarNavigation({ batchCount, factorCount }) {
         </button>
       </div>
 
+      {/* Logged in User Profile Card */}
+      {user && (
+        <div className="mx-4 mt-4 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+              <User className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{user.name}</div>
+              <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{user.email}</div>
+            </div>
+          </div>
+          <span
+            className={`text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+              isSuperAdmin
+                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+            }`}
+          >
+            {isSuperAdmin ? 'ADMIN' : 'CLIENT'}
+          </span>
+        </div>
+      )}
+
       {/* Main Navigation Menu */}
-      <div className="p-4 space-y-2 flex-1">
+      <div className="p-4 space-y-2 flex-1 overflow-y-auto">
         <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider px-3 mb-2">
           Navigation Menu
         </div>
@@ -88,10 +114,6 @@ export function SidebarNavigation({ batchCount, factorCount }) {
                 </div>
                 <span className="text-xs">Uploaded Lists</span>
               </div>
-
-              <span className="text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                {batchCount}
-              </span>
             </>
           )}
         </NavLink>
@@ -121,21 +143,54 @@ export function SidebarNavigation({ batchCount, factorCount }) {
                 </div>
                 <span className="text-xs">Benchmark Factors</span>
               </div>
-
-              <span className="text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                {factorCount}
-              </span>
             </>
           )}
         </NavLink>
+
+        {/* Superadmin Menu Item: User Management (/admin/users) */}
+        {isSuperAdmin && (
+          <NavLink
+            to="/admin/users"
+            className={({ isActive }) =>
+              `w-full p-3 rounded-xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
+                isActive
+                  ? 'bg-amber-500/10 border-amber-500/40 text-amber-600 dark:text-amber-400 font-bold shadow-sm ring-1 ring-amber-500/20'
+                  : 'bg-slate-50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-semibold'
+              }`
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <div
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                    isActive
+                      ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                      : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                  }`}
+                >
+                  <Users className="w-4 h-4" />
+                </div>
+                <span className="text-xs">User Management</span>
+              </>
+            )}
+          </NavLink>
+        )}
       </div>
 
       {/* Sidebar Footer */}
-      <div className="p-4 border-t border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 flex items-center justify-between">
-        <span className="flex items-center gap-1.5">
-          <Database className="w-3.5 h-3.5 text-emerald-500" /> Reference Factors
+      <div className="p-4 border-t border-slate-200 dark:border-slate-800 text-[11px] flex items-center justify-between">
+        <span className="flex items-center gap-1.5 text-slate-500">
+          <Database className="w-3.5 h-3.5 text-emerald-500" /> EU v2024.1
         </span>
-        <span className="font-mono text-emerald-600 dark:text-emerald-400 font-semibold">EU v2024.1</span>
+
+        <button
+          onClick={logout}
+          title="Sign Out"
+          className="flex items-center gap-1 text-slate-500 hover:text-rose-500 transition-colors font-semibold cursor-pointer"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          <span>Logout</span>
+        </button>
       </div>
     </aside>
   );

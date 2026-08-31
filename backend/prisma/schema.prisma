@@ -1,4 +1,4 @@
-// Prisma Schema for CBAM Backend
+// Prisma Schema for CBAM Backend with RBAC & Batch Processing (PostgreSQL Database)
 
 generator client {
   provider = "prisma-client-js"
@@ -9,19 +9,55 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ------------------------------------------------------
+// Enums
+// ------------------------------------------------------
+
+enum Role {
+  SUPER_ADMIN
+  CUSTOMER
+}
+
 enum BatchStatus {
   UPLOADED
   MAPPING_REQUIRED
-  VALIDATING
   VALIDATED
-  CALCULATING
   CALCULATED
   COMPLETED
   FAILED
 }
 
+// ------------------------------------------------------
+// 1. User & Authentication Model
+// ------------------------------------------------------
+
+model User {
+  id                 String        @id @default(uuid())
+  email              String        @unique
+  password           String        // Bcrypt hashed password
+  name               String
+  company            String?
+  role               Role          @default(CUSTOMER)
+  isActive           Boolean       @default(true)
+  mustChangePassword Boolean       @default(true) // Set to true for temporary passwords
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  // Relations
+  batches            UploadBatch[]
+  auditLogs          AuditLog[]
+
+  @@map("users")
+}
+
+// ------------------------------------------------------
+// 2. Upload Batch Model
+// ------------------------------------------------------
+
 model UploadBatch {
   id           String            @id @default(uuid())
+  userId       String
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   fileName     String
   originalName String
   filePath     String
@@ -31,49 +67,87 @@ model UploadBatch {
   errorMessage String?
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
+
+  // Relations
   datasets     ClientDataset[]
   results      CalculationResult?
+
+  @@map("upload_batches")
 }
+
+// ------------------------------------------------------
+// 3. Client Mapped Goods Dataset Model
+// ------------------------------------------------------
 
 model ClientDataset {
   id                    String      @id @default(uuid())
   batchId               String
   batch                 UploadBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  cnCode                String
+  cnCode                String      // EU 8-digit Combined Nomenclature goods code
   goodsDescription      String?
   countryOfOrigin       String
   installationName      String?
-  productionQuantity    Float
+  productionQuantity    Float       // Production in tonnes
   quantityUnit          String      @default("tonne")
-  directEmissions       Float?      // tCO2e / unit
-  indirectEmissions     Float?      // tCO2e / unit
+  directEmissions       Float?      // tCO2e per tonne
+  indirectEmissions     Float?      // tCO2e per tonne
   electricityConsumed   Float?      // MWh
   isValid               Boolean     @default(true)
-  validationErrors      String[]
+  validationErrors      String[]    // List of missing/invalid field descriptions
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
+
+  @@map("client_datasets")
 }
+
+// ------------------------------------------------------
+// 4. EU Benchmark Default Factors (Managed by Superadmin)
+// ------------------------------------------------------
 
 model BenchmarkFactor {
   id                   String   @id @default(uuid())
-  cnCode               String   @unique
-  sector               String
-  goodsName            String
-  directBenchmark      Float    // EU default tCO2e per tonne
-  indirectBenchmark    Float    // EU default tCO2e per tonne
+  cnCode               String   @unique // CN Code lookup
+  sector               String   // Iron & Steel, Aluminum, Cement, Fertilizers, etc.
+  goodsName            String   // Official EU goods description
+  directBenchmark      Float    // EU default direct emission factor (tCO2e/t)
+  indirectBenchmark    Float    // EU default indirect emission factor (tCO2e/t)
   unit                 String   @default("tCO2e/t")
+  updatedBy            String?  // Superadmin User ID who last modified
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+
+  @@map("benchmark_factors")
 }
+
+// ------------------------------------------------------
+// 5. CBAM Calculation Summary & Report Model
+// ------------------------------------------------------
 
 model CalculationResult {
   id                      String      @id @default(uuid())
   batchId                 String      @unique
   batch                   UploadBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  totalProductionQuantity Float
-  totalDirectEmissions    Float       // Total tCO2e
-  totalIndirectEmissions  Float       // Total tCO2e
-  totalEmbeddedEmissions  Float       // Direct + Indirect tCO2e
-  reportPath              String?
+  totalProductionQuantity Float       // Total tonnage across all goods
+  totalDirectEmissions    Float       // Total direct tCO2e
+  totalIndirectEmissions  Float       // Total indirect tCO2e
+  totalEmbeddedEmissions  Float       // Total Direct + Indirect tCO2e
+  reportPath              String?     // File path to generated Word (.docx) report
   calculatedAt            DateTime    @default(now())
+
+  @@map("calculation_results")
+}
+
+// ------------------------------------------------------
+// 6. Audit Log Model (Tracks Superadmin Actions)
+// ------------------------------------------------------
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String   // e.g. "CREATE_USER", "UPDATE_BENCHMARK_FACTOR", "DEACTIVATE_USER"
+  details   String?  // Additional context
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
 }
